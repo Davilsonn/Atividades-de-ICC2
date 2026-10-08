@@ -1,0 +1,124 @@
+
+//ocup {0 = DESOCUPADO; 1 = OCUPADO; -1 = REMOVIDO}
+
+typedef struct{
+    int chave;
+    int cont;
+    int ocup;
+}Slot;
+
+typedef struct{
+    int m;
+    int n;
+    Slot* slots;
+}TabelaHash;
+
+
+
+TabelaHash* criarTabela(int m){
+    TabelaHash tabela;
+    
+    tabela.slots = malloc((sizeof(Slot) * m));
+    
+    //Colocando as caracteristicas
+    tabela.m = m;
+    tabela.n = 0;
+    
+    for (int i = 0; i < m; i++){
+        tabela.slots[i].ocup = 0;
+        tabela.slots[i].chave = -1;
+    }
+    
+    return (&tabela);
+}
+
+
+
+
+int aplicarHash(TabelaHash* tabela, int chave){
+    int m = (*tabela).m;
+    for (int i = 0; i < m; i++){
+        int index = ((chave + i) % m);
+        
+        if (((*tabela).slots[index].ocup == 0) || ((*tabela).slots[index].ocup == -1)){
+            return (index);
+        }
+    }
+}
+
+int encontrarHash(TabelaHash* tabela, int chave){
+    int m = (*tabela).m;
+    int i = 0;
+    int index = ((chave + i) % m);
+    
+    while ((*tabela).slots[index].ocup != 0){
+        index = ((chave + i) % m);
+        if (((*tabela).slots[index].chave) == chave){
+            return index;
+        }
+        i++;
+    }
+}
+
+
+
+
+TabelaHash* expandirTabela(TabelaHash* tabelaOld,int mNew){
+    TabelaHash tabelaNew;
+    
+    Slot* p = malloc (sizeof(Slot) * mNew);
+    tabelaNew.slots = p;
+    
+    //Colocando as caracteristicas
+    tabelaNew.m = mNew;
+    tabelaNew.n = 0;
+    
+    for (int i = 0; i < mNew; i++){
+        tabelaNew.slots[i].ocup = 0;
+        tabelaNew.slots[i].chave = -1;
+    }
+    
+    for (int i = 0; i < (tabelaOld*).m; i++){
+        slot = (tabelaOld*).slots[i];
+        if (slot.ocup == 1){
+            int index = aplicarHash(&tabelaNew, slot.chave);
+            
+            adicionar(&tabelaNew, slot, index);
+            tabelaNew.n++;
+        }
+    }
+    
+    free (tabelaOld);
+    return (&tabelaNew);
+}
+
+
+//--------------------- FUNCOES DE INTERESSE -----------------------
+
+int buscar(TabelaHash* tabela, int chave){
+    int index = encontrarHash (&tabela, chave);
+    return (tabela.slots[index].cont);
+}
+
+void inserir(TabelaHash* tabela, Slot slotNovo){
+    
+    if ((*tabela).n >= (*tabela).m){
+        tabela = expandirTabela(&tabela, (*tabela).m * 7);
+    }
+    int index = aplicarHash (&tabela, slotNovo.chave);
+    Slot* slotIndexed = (*tabela).slots[index];
+    
+    slotIndex.chave = slotNovo.chave;
+    slotIndexed.cont = slotNovo.cont;
+    slotIndexed.ocup = 1;
+    (*tabela).n++;
+}
+
+void remover(TabelaHash* tabela, int chave){
+    int index = encontrarHash(&tabela, chave);
+    Slot* slotIndexed = (*tabela).slots[index];
+    
+    slotIndexed.chave = 0;
+    slotIndexed.cont = 0;
+    slotIndexed.ocup = -1;
+}
