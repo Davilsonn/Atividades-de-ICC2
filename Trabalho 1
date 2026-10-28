@@ -1,0 +1,485 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct{
+    int hor;
+    int min;
+    int seg;
+} Tempo;
+
+typedef struct{
+    char descrip[51];
+    int prior;
+    Tempo tempo;
+} Process;
+
+
+
+//PROTOTIPOS
+Process* criarLista (Process* lista, int m);
+Process* expandirLista (Process* lista, int m);
+
+void merge(Process* lista, int l, int m, int r, char ordem);
+void mergeSort(Process* lista, int l, int r, char ordem, int* stateFlag);
+
+Tempo lerTempo(char* string, int* i);
+int calcTempoTotal(Tempo tempo);
+
+int procurar(Process* lista, char ordem, int n, int* stateFlag);
+void adicionar(Process* lista, int* n, int* i, char* comando, int* stateFlag);
+void executar(Process* lista, int* n, char ordem, int* stateFlag);
+void mudar(Process* lista, char* comando, int* i, char ordem, int* n, int* stateFlag);
+
+void printInfo(Process* lista, int ID);
+void lerComando(Process* lista, int* n, int* isExit, int* stateFlag);
+
+
+
+// ==> MAIN
+int main()
+{
+    int n = 0;
+    int m = 64;
+    int isExit = 0;
+    int stateFlag = 1;
+    //1 = OrdPrior, 2 = OrdTempo
+    
+    Process* lista = criarLista(lista, m);
+    
+    while (isExit == 0){
+        if (n >= m){
+            m = m * 2;
+            lista = expandirLista(lista,m);
+        }
+        lerComando(lista, &n, &isExit, &stateFlag);
+        //printf("  :%d", lista[n - 1].prior);
+    }
+    
+    free(lista);
+    return 0;
+}
+
+
+
+
+
+//ALOCACAO DINAMICA DA LISTA
+////////////////
+Process* criarLista (Process* lista, int m){
+    lista = malloc(m * sizeof(Process));
+    if (lista == NULL){
+        printf("Erro na alocação!!!");
+        exit(1);
+    }
+    return(lista);
+}
+////////////////
+
+Process* expandirLista (Process* lista, int m){
+    Process* temp = realloc(lista, m * sizeof(Process));
+    if (temp == NULL){
+        printf("Erro na realocação!!!");
+        free(lista);
+        exit(1);
+    }
+    return(temp);
+}
+////////////////
+
+
+
+
+
+//MERGE SORT
+
+
+void merge(Process* lista, int l, int m, int r, char ordem){
+    
+    int i, j, k;
+    int n1 = m - l + 1;
+    int n2 = r - m;
+
+    Process leftSide[n1], rightSide[n2];
+
+    for (i = 0; i < n1; i++){
+        leftSide[i] = lista[l + i];
+    }
+    for (j = 0; j < n2; j++){
+        rightSide[j] = lista[m + 1 + j];
+    }
+
+    i = 0;
+    j = 0;
+    k = l;
+    while (i < n1 && j < n2) {
+        if (ordem == 'p'){
+            if (leftSide[i].prior <= rightSide[j].prior) {
+                lista[k] = leftSide[i];
+                i++;
+            }
+            else {
+                lista[k] = rightSide[j];
+                j++;
+            }
+            k++;
+        } else if (ordem == 't'){
+            //printf("%d vs %d\n",calcTempoTotal(leftSide[i].tempo), calcTempoTotal(rightSide[j].tempo));
+            if (calcTempoTotal(leftSide[i].tempo) >= calcTempoTotal(rightSide[j].tempo)) {
+                lista[k] = leftSide[i];
+                i++;
+            }
+            else {
+                lista[k] = rightSide[j];
+                j++;
+            }
+            k++;
+        }
+    }
+
+
+    while (i < n1) {
+        lista[k] = leftSide[i];
+        i++;
+        k++;
+    }
+
+
+    while (j < n2) {
+        lista[k] = rightSide[j];
+        j++;
+        k++;
+    }
+}
+
+
+void mergeSort(Process* lista, int l, int r, char ordem, int* stateFlag){
+    
+    if (ordem == 'p'){
+        *stateFlag = 1;
+    }
+    if (ordem == 't'){
+        *stateFlag = 2;
+    }
+        
+    
+    if (l < r) {
+        int m = l + (r - l) / 2;
+
+        mergeSort(lista, l, m, ordem, stateFlag);
+        mergeSort(lista, m + 1, r, ordem, stateFlag);
+
+        merge(lista, l, m, r, ordem);
+    }
+}
+
+/////////////////////
+//FUCOES DE UTILIDADE
+
+Tempo lerTempo(char* string, int* i){
+    Tempo tempo;
+    tempo.hor = 0;
+    while (string[(*i)] != ':'){
+        tempo.hor = tempo.hor * 10;
+        tempo.hor = tempo.hor + string[(*i)] - '0';
+        (*i)++;
+    }
+    (*i)++;
+    
+    tempo.min = 0;
+    while (string[(*i)] != ':'){
+        tempo.min = tempo.min * 10;
+        tempo.min = tempo.min + string[(*i)] - '0';
+        (*i)++;
+    }
+    (*i)++;
+    
+    tempo.seg = 0;
+    while ((string[(*i)] != ' ') && (string[(*i)] != '|') && (string[(*i)] != '\n')){
+        tempo.seg = tempo.seg * 10;
+        tempo.seg = tempo.seg + string[(*i)] - '0';
+        (*i)++;
+    }
+    (*i)++;
+    
+    return(tempo);
+}
+/////////////////////
+
+int calcTempoTotal(Tempo tempo){
+    int total = 0;
+    total = total + (tempo.hor * 3600);
+    total = total + (tempo.min * 60);
+    total = total + tempo.seg;
+    return(total);
+}
+
+
+int compareTempo(Tempo t1, Tempo t2){
+    int isEqual = 1;
+    
+    if ((t1.hor != t2.hor) || (t1.min != t2.min) || (t1.seg != t2.seg)){
+        return(0);
+    } else {
+        return(1);
+    }
+    
+}
+
+void swtichAnterior(Process* lista, int i){
+    Process temp = lista[i];
+    lista[i] = lista[i - 1];
+    lista[i - 1] = temp;
+}
+
+
+
+
+//FUNCOES GERAIS
+/////////////////////
+//// ==> NEXT
+int procurar(Process* lista, char ordem, int n, int* stateFlag){
+    if ((ordem == 'p') && (*stateFlag) == 1){
+        return (n - 1);
+    }
+    
+    if ((ordem == 't') && (*stateFlag) == 2){
+        return (n - 1);
+    }
+    
+    
+    if (ordem == 'p'){
+        int max = 0;
+        int maxID = 0;
+        for (int i = 0; i < n; i++){
+            if (lista[i].prior > max){
+                max = lista[i].prior;
+                maxID = i;
+            }
+        }
+        
+        return(maxID);
+        
+    } else if (ordem == 't'){
+        int min = 99999999;
+        int minID = 0;
+        for (int i = 0; i < n; i++){
+            int total = calcTempoTotal(lista[i].tempo);
+            
+            if (total < min){
+                min = total;
+                minID = i;
+            }
+        }
+        
+        return(minID);
+    }
+}
+/////////////////////
+//// ==> ADD
+void adicionar(Process* lista, int* n, int* i, char* comando, int* stateFlag){
+    Process novoItem;
+    
+    int prioridade = 0;
+    while (comando[(*i)] != ' '){
+        prioridade = prioridade * 10;
+        prioridade = prioridade + comando[(*i)] - '0';
+        (*i)++;
+    }
+    novoItem.prior = prioridade;
+    (*i)++;
+    novoItem.tempo = lerTempo(comando, i);
+   
+    int j = 0;
+       while ((comando[(*i)] != '\n') && (comando[(*i)] != '\0')){
+        novoItem.descrip[j] = comando[(*i)];
+        (*i)++;
+        j++;
+    }
+    novoItem.descrip[j] = '\0';
+    lista[(*n)] = novoItem;
+    
+    if ((*stateFlag) == 1){
+        for (int i = (*n); i >= 0; i--){
+            while (lista[i].prior < lista[i - 1].prior){
+                swtichAnterior(lista, i);
+            }
+            break;
+        }
+        (*n)++;
+        return;
+    } else if ((*stateFlag) == 2){
+        for (int i = (*n); i >= 0; i--){
+            while (calcTempoTotal(lista[i].tempo) > calcTempoTotal(lista[i - 1].tempo)){
+                swtichAnterior(lista, i);
+            }
+            break;
+        }
+        (*n)++;
+        return;
+    }
+(*n)++;
+}
+////////////////////
+//// ==> EXEC
+void executar(Process* lista, int* n, char ordem, int* stateFlag){
+    int ID;
+    if (((*stateFlag) == 1) && (ordem == 'p')){
+        ID = (*n) - 1;
+    }else if (((*stateFlag) == 2) && (ordem == 't')){
+        ID = (*n) - 1;
+    }else{
+        ID = procurar(lista, ordem, (*n), stateFlag);
+    }
+    
+    for (int i = ID; i < ((*n) - 1); i++){
+            lista[i] = lista[i + 1];
+        }
+    (*n)--;
+}
+/////////////////////
+//// ==> CHANGE
+void mudar(Process* lista, char* comando, int* i, char ordem, int* n, int* stateFlag){
+    
+    int ID = -1;
+    
+    if (ordem == 'p'){
+        int priorOld = 0;
+        while (comando[(*i)] != '|'){
+            priorOld = priorOld * 10;
+            priorOld = priorOld + comando[(*i)] - '0';
+            (*i)++;
+        }
+        
+        for (int c = 0; c < (*n); c++){
+            if (lista[c].prior == priorOld){
+                ID = c;
+            }
+        }
+        if (ID == -1){
+            printf("Nao existe na lista\n");
+            return;
+        }
+        
+        (*i)++;
+        int priorNew = 0;
+        while ((comando[(*i)] != '\n') && (comando[(*i)] != '\0')){
+            priorNew = priorNew * 10;
+            priorNew = priorNew + comando[(*i)] - '0';
+            //printf("%d\n", comando[*i] - '0');
+            (*i)++;
+        }
+        lista[ID].prior = priorNew;
+    } else if (ordem == 't'){
+        Tempo tempoOld = lerTempo(comando, i);
+        //printf("Tempo pra comparar: %d:%d:%d\n",tempoOld.hor,tempoOld.min,tempoOld.seg);
+        
+        for (int c = 0; c < (*n); c++){
+            if (compareTempo(lista[c].tempo, tempoOld)){
+                ID = c;
+            }
+        }
+        if (ID == -1){
+            printf("Nao existe na lista\n");
+            return;
+        }
+        (*i)++;
+        Tempo tempoNew = lerTempo(comando, i);
+        
+        lista[ID].tempo = tempoNew;
+    }
+    
+    
+    // ENCONTRANDO NOVO LOCAL
+    if ((*stateFlag) == 1){
+        while (lista[ID].prior < lista[ID - 1].prior){
+            swtichAnterior(lista, ID);
+            ID--;
+        }
+        while (lista[ID].prior > lista[ID + 1].prior){
+            Process temp = lista[ID];
+            lista[ID] = lista[ID + 1];
+            lista[ID + 1] = temp;
+            ID++;
+        }
+    } else if ((*stateFlag) == 2){
+        while (calcTempoTotal(lista[ID].tempo) > calcTempoTotal(lista[ID - 1].tempo)){
+            swtichAnterior(lista, ID);
+            ID--;
+        }
+        while (calcTempoTotal(lista[ID].tempo) < calcTempoTotal(lista[ID + 1].tempo)){
+            Process temp = lista[ID];
+            lista[ID] = lista[ID + 1];
+            lista[ID + 1] = temp;
+            ID++;
+        }
+    }
+    
+    
+}
+
+
+//////////////////////
+//FUNCOES DE CONSOLE
+
+void printInfo(Process* lista, int ID){
+    Process item = lista[ID];
+    printf("%02d %02d:%02d:%02d %s \n", item.prior, item.tempo.hor, item.tempo.min, item.tempo.seg,item.descrip);
+}
+
+
+
+void lerComando(Process* lista, int* n, int* isExit, int* stateFlag){
+    char info[70];
+    fgets(info, 70, stdin);
+    
+    char comando[7];
+    int i = 0;
+    while ((info[i] != ' ') && (info[i] != '\n') && (info[i] != '\0') && (i < 6)){
+        comando[i] = info[i];
+        i++;
+    }
+    comando[i] = '\0';
+    i = i + 2;
+    
+    if (strcmp(comando,"add") == 0){
+        i--;
+        adicionar(lista, n, &i, info, stateFlag);
+    } else if (strcmp(comando,"next") == 0){
+        char ordem = info[i];
+        printInfo(lista,(procurar(lista, ordem, (*n), stateFlag)));
+        printf("\n");
+    } else if (strcmp(comando,"exec") == 0){
+        char ordem = info[i];
+        executar(lista, n, ordem, stateFlag);
+    } else if (strcmp(comando,"change") == 0){
+        char ordem = info[i];
+        i = i + 2;
+        mudar(lista, info, &i, ordem, n, stateFlag);
+    }else if (strcmp(comando,"print") == 0){
+        char ordem = info[i];
+        
+        if (((*stateFlag) == 1) && (ordem == 'p')){
+            for(int c = (*n) - 1; c >= 0; c--){
+                printInfo(lista, c);
+            }
+            printf("\n");
+            return;
+        }
+        if ((((*stateFlag) == 2) && (ordem == 't'))){
+            for(int c = (*n) - 1; c >= 0; c--){
+                printInfo(lista, c);
+            }
+            printf("\n");
+            return;
+        }
+        mergeSort(lista, 0, (*n) - 1, ordem, stateFlag);
+        
+            for(int c = (*n) - 1; c >= 0; c--){
+                printInfo(lista, c);
+            }
+            printf("\n");
+    } else if (strcmp(comando,"quit") == 0){
+        (*isExit)++;
+    }
+}
